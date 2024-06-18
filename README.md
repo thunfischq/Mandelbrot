@@ -6,7 +6,7 @@ A simple renderer for the Mandelbrot set written in C++17. Serves no purpose bes
 
 Requires SFML library. On Ubuntu, install it via:
 
-    >>> sudo apt-get install libsfml-dev
+    sudo apt-get install libsfml-dev
 
 For anything else, the installation paths in the Makefile will probably need to be adjusted.
 
@@ -14,8 +14,8 @@ For anything else, the installation paths in the Makefile will probably need to 
 
 Compile the binary by running the Makefile:
 
-    >>> make
+    make
 
 and then run the executable:
 
-    >>> ./bin/Mandelbrot
+    ./bin/Mandelbrot
