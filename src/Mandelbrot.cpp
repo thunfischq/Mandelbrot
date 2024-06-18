@@ -30,12 +30,11 @@ void initComplex(struct Complex *complex, float real, float imag) {
 }
 
 
-// This maybe could be done more efficient using sinus and tangent and shit. That way,
-// the costly sqrt() could be evaded. But don't know how efficient sin and tan are...
-// But this would be the main place for improved efficiency I think.
 // The absolute value of a complex number, being the distance from (0, 0) in the plain.
-float abs(Complex *complex) {
-    return sqrt(pow(complex->real, 2) + pow(complex->imag, 2));
+// Calculating SQUARED distance value sqrt(a^2+b^2)^2 = abs(a^2+b^2) instead of normal
+// distance value sqrt(a^2+b^2) for efficiency.
+float absSquared(Complex *complex) {
+    return abs(pow(complex->real, 2) + pow(complex->imag, 2));
 }
 
 
@@ -63,7 +62,9 @@ int mandelbrot(Complex *c, int maxLoops) {
     int amountLoops = 0;
     Complex sumSequence;
     initComplex(&sumSequence, 0, 0);
-    while (amountLoops < maxLoops && abs(&sumSequence) < 2) {
+    // Normally the value "explodes" when abs >= 2, but because we have squared abs,
+    // we abort if it gets >= 4 okayge.
+    while (amountLoops < maxLoops && absSquared(&sumSequence) < 4) {
         Complex squared = squareComplex(&sumSequence);
         sumSequence = addComplex(&squared, c);
         amountLoops++;
@@ -72,6 +73,7 @@ int mandelbrot(Complex *c, int maxLoops) {
 }
 
 
+// Don't know how this works, ChatGPT told me to do it like this :D
 sf::Color interpolate(sf::Color colorA, sf::Color colorB, float t) {
     sf::Color interpolatedColor(
             colorA.r + static_cast<sf::Uint8>(t * (colorB.r - colorA.r)),
@@ -143,7 +145,7 @@ void zoomIn(int x, int y, Complex *upperLeft, Complex *lowerRight, int width, in
 
 int main(int argc, char* argv[]) {
     int width = 800;
-    int height = 600;
+    int height = 450;
     int maxI = 100;
     float sixDivMaxI = (float)6 / maxI; // used to make color calculation more efficient
     bool update = true;
@@ -233,6 +235,5 @@ int main(int argc, char* argv[]) {
             }
         }
     }
-
     return 0;
 }
