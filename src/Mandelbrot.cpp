@@ -64,7 +64,7 @@ int mandelbrot(Complex *c, int maxLoops) {
     int amountLoops = 0;
     Complex sumSequence;
     initComplex(&sumSequence, 0, 0);
-    // Normally the value "explodes" when abs >= 2, but because we have squared abs,
+    // normally the value "explodes" when abs >= 2, but because we have squared abs,
     // we abort if it gets >= 4 okayge.
     while (amountLoops < maxLoops && absSquared(&sumSequence) < 4) {
         Complex squared = squareComplex(&sumSequence);
@@ -131,11 +131,12 @@ sf::Color getPixelColor(int x, int y, const Complex* upperLeft, const Complex* l
 }
 
 
-// Function to compute rows in an interleaved pattern
+// Compute rows of pixel in an interleaved pattern for better performance
 void computeRowsInterleaved(int threadId, int threadCount, int width, int height,
     const Complex& upperLeft, const Complex& lowerRight, int maxI, double sixDivMaxI,
     std::vector<std::vector<sf::Color>>& rowBuffer) {
-
+    // rows are allocated in a module sense, so if there are f.e. 3 workers,
+    // worker one will get row 1, 4, 7,... and the other workers accordingly
     for (int y = threadId; y < height; y += threadCount) {
         for (int x = 0; x < width; ++x) {
             sf::Color color = getPixelColor(x, y, &upperLeft, &lowerRight,
@@ -146,24 +147,25 @@ void computeRowsInterleaved(int threadId, int threadCount, int width, int height
 }
 
 
+// Divide the rows that are to be computed and allocate them to the workers
 void divideAndConquer(const Complex* upperLeft, const Complex* lowerRight,
                             int width, int height, int maxI, double sixDivMaxI,
                             sf::Image* image) {
-    // Number of threads based on CPU cores
+    // number of threads based on CPU cores
     const int threadCount = std::thread::hardware_concurrency();
     std::vector<std::thread> threads;
 
-    // Create a 2D buffer for all pixels, initialized with the correct size
+    // create a 2D buffer for all pixels, initialized with the correct size
     std::vector<std::vector<sf::Color>> rowBuffer(height, std::vector<sf::Color>(width));
 
-    // Divide work among threads
+    // divide work among worker
     for (int i = 0; i < threadCount; ++i) {
         threads.emplace_back(computeRowsInterleaved, i, threadCount, width, height,
                              std::cref(*upperLeft), std::cref(*lowerRight), maxI,
                              sixDivMaxI, std::ref(rowBuffer));
     }
 
-    // Wait for all threads to finish
+    // wait for all threads to finish
     for (auto& thread : threads) {
         thread.join();
     }
