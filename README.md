@@ -1,6 +1,10 @@
 # Mandelbrot
 
-A simple renderer for the Mandelbrot set written in C++17. Serves no purpose besides looking cool.
+A cpu-bound multi-threaded renderer for the Mandelbrot set written in C++17. Serves no purpose besides looking cool. For an explanation of the Mandelbrot set, have a look at this https://en.wikipedia.org/wiki/Mandelbrot_set.
+
+Below you see an example image rendered in 1920x1080.
+
+![image](.example.png)
 
 # Dependencies
 
@@ -19,3 +23,13 @@ Compile the binary by running the Makefile:
 and then run the executable:
 
     ./bin/Mandelbrot
+
+Resolution of rendering (not drawing) is 1280x720 normally. Different resolutions can be given as optional arguments:
+
+    ./bin/Mandelbrot 1920 1080
+
+## Controls
+
+- Zoom into the location of the mouse cursor by pressing LMB.
+
+- Sharpen / blur the rendering by pressing +/- .

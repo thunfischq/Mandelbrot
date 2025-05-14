@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <math.h>
 #include <algorithm>
+#include <thread>
+#include <vector>
 
 
 sf::Color black(0, 0, 0);
@@ -118,13 +120,60 @@ sf::Color color(int i, int maxI, float sixMaxI) {
 // upperLeft and lowerRight complex number anchors and the width and height of the
 // window, then running the "mandelbrot sequence" on it and calculating the color by the
 // amount of loops mandelbrot() returns.
-sf::Color getPixelColor(int x, int y, Complex *upperLeft, Complex *lowerRight, int width, int height, int maxI, float sixMaxI) {
+sf::Color getPixelColor(int x, int y, const Complex* upperLeft, const Complex* lowerRight,
+                        int width, int height, int maxI, double sixMaxI) {
     Complex c;
     float ratioX = (float)x / width;
     float ratioY = (float)y / height;
     initComplex(&c, upperLeft->real + (ratioX * (lowerRight->real - upperLeft->real)),
                     upperLeft->imag + (ratioY * (lowerRight->imag - upperLeft->imag)));
     return color(mandelbrot(&c, maxI), maxI, sixMaxI);
+}
+
+
+// Function to compute rows in an interleaved pattern
+void computeRowsInterleaved(int threadId, int threadCount, int width, int height,
+    const Complex& upperLeft, const Complex& lowerRight, int maxI, double sixDivMaxI,
+    std::vector<std::vector<sf::Color>>& rowBuffer) {
+
+    for (int y = threadId; y < height; y += threadCount) {
+        for (int x = 0; x < width; ++x) {
+            sf::Color color = getPixelColor(x, y, &upperLeft, &lowerRight,
+                                            width, height, maxI, sixDivMaxI);
+            rowBuffer[y][x] = color;
+        }
+    }
+}
+
+
+void divideAndConquer(const Complex* upperLeft, const Complex* lowerRight,
+                            int width, int height, int maxI, double sixDivMaxI,
+                            sf::Image* image) {
+    // Number of threads based on CPU cores
+    const int threadCount = std::thread::hardware_concurrency();
+    std::vector<std::thread> threads;
+
+    // Create a 2D buffer for all pixels, initialized with the correct size
+    std::vector<std::vector<sf::Color>> rowBuffer(height, std::vector<sf::Color>(width));
+
+    // Divide work among threads
+    for (int i = 0; i < threadCount; ++i) {
+        threads.emplace_back(computeRowsInterleaved, i, threadCount, width, height,
+                             std::cref(*upperLeft), std::cref(*lowerRight), maxI,
+                             sixDivMaxI, std::ref(rowBuffer));
+    }
+
+    // Wait for all threads to finish
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    // merge all pixel rows into an image
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            (*image).setPixel(x, y, rowBuffer[y][x]);
+        }
+    }
 }
 
 
@@ -144,10 +193,10 @@ void zoomIn(int x, int y, Complex *upperLeft, Complex *lowerRight, int width, in
 
 
 int main(int argc, char* argv[]) {
-    int width = 800;
-    int height = 450;
+    int width = 1280;
+    int height = 720;
     int maxI = 100;
-    float sixDivMaxI = (float)6 / maxI; // used to make color calculation more efficient
+    double sixDivMaxI = (double)6 / maxI; // used to make color calculation more efficient
     bool update = true;
     bool sharpen = false;
     bool blur = false;
@@ -156,7 +205,7 @@ int main(int argc, char* argv[]) {
     initComplex(&upperLeft, -2.5, 1);
     initComplex(&lowerRight, 1, -1);
 
-    // optional terminal arguments
+    // parse optional terminal arguments
     if (argc > 1) {
         width = std::atoi(argv[1]);
     }
@@ -167,13 +216,23 @@ int main(int argc, char* argv[]) {
         maxI = std::max(std::atoi(argv[3]), 100);
     }
 
-    sf::RenderWindow window(sf::VideoMode(width, height), "Mandelbrot");
+    // initiate renderer
+    sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
+    sf::RenderWindow window(desktop, "Mandelbrot", sf::Style::None);
+
+    // compute scaling
     sf::Image image;
-    image.create(width, height, sf::Color::Black);
+    image.create(width, height);
+    window.setPosition({0, 0});
+    int screenWidth = desktop.width;
+    int screenHeight = desktop.height;
+    float scaleX = static_cast<float>(screenWidth) / width;
+    float scaleY = static_cast<float>(screenHeight) / height;
 
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
+            // handle keyboard input
             if (event.type == sf::Event::Closed) {
                 window.close();
             }
@@ -181,16 +240,17 @@ int main(int argc, char* argv[]) {
             if (event.type == sf::Event::KeyPressed) {
                 if (event.key.code == 47 && sharpen == false) {
                     maxI += 50;
-                    sixDivMaxI = (float)6 / maxI;
+                    sixDivMaxI = (double)6 / maxI;
                     update = true;
                     sharpen = true;
                 }
                 if (event.key.code == 56 && blur == false) {
                     maxI = std::max(100, maxI - 50);
-                    sixDivMaxI = (float)6 / maxI;
+                    sixDivMaxI = (double)6 / maxI;
                     update = true;
                     blur = true;
                 }
+                // close window if esc pressed
                 if (event.key.code == sf::Keyboard::Escape) {
                     window.close();
                 }
@@ -205,18 +265,20 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        // update rendering if requested
         if (update) {
-            // determine color for all pixels and set them in image
-            for (int x = 0; x < width; ++x) {
-                for (int y = 0; y < height; ++y) {
-                    sf::Color color = getPixelColor(x, y, &upperLeft, &lowerRight, width, height, maxI, sixDivMaxI);
-                    image.setPixel(x, y, color);
-                }
-            }
+            divideAndConquer(&upperLeft, &lowerRight, width, height, maxI,
+                            sixDivMaxI, &image);
 
             sf::Texture texture;
+            sf::Sprite sprite;
+
             texture.loadFromImage(image);
-            sf::Sprite sprite(texture);
+            texture.setSmooth(true);
+            sprite.setTexture(texture);
+
+            // scale sprite with dimensions (width, height) to (screenWidth, screenHeight)
+            sprite.setScale(scaleX, scaleY);
 
             // clear previous image and draw new one
             window.clear();
@@ -225,12 +287,14 @@ int main(int argc, char* argv[]) {
             update = false;
         }
 
-        // call zoomIn function if mouse left button was pressed whilst the cursor is
+        // call zoom function if LMB was pressed whilst the cursor is
         // inside the program window
         sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
         if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-            if (mousePosition.x >= 0 && mousePosition.x < width && mousePosition.y >= 0 && mousePosition.y < height) {
-                zoomIn(mousePosition.x, mousePosition.y, &upperLeft, &lowerRight, width, height, 0.9);
+            if (mousePosition.x >= 0 && mousePosition.x < screenWidth
+                && mousePosition.y >= 0 && mousePosition.y < screenHeight) {
+                zoomIn(mousePosition.x / scaleX, mousePosition.y / scaleY,
+                        &upperLeft, &lowerRight, width, height, 0.9);
                 update = true;
             }
         }
