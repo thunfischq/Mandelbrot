@@ -7,6 +7,7 @@
 #include <vector>
 #include <sstream>
 #include <iomanip>
+#include <cstring>
 
 
 sf::Color black(0, 0, 0);
@@ -214,22 +215,33 @@ int main(int argc, char* argv[]) {
     bool blur = false;
     bool autoZoom = false;
     uint32_t frameCounter = 0;
+    int maxFrames = -1;
     Complex upperLeft;
     Complex lowerRight;
     Complex autoZoomTarget;
     initComplex(&upperLeft, -2.5, 1);
     initComplex(&lowerRight, 1, -1);
-    initComplex(&autoZoomTarget, -0.04332, 0.98630);
+    initComplex(&autoZoomTarget, -0.74364386269, 0.13182590271);
+
+    std::string helpText = "help text\n";
 
     // parse optional terminal arguments
-    if (argc > 1) {
-        width = std::atoi(argv[1]);
-    }
-    if (argc > 2) {
-        height = std::atoi(argv[2]);
-    }
-    if (argc > 3) {
-        maxI = std::max(std::atoi(argv[3]), 100);
+    for (int i = 1; i < argc; i++) {
+        if (std::strcmp(argv[i], "-r") == 0) {
+            width = std::atoi(argv[i + 1]);
+            height = std::atoi(argv[i + 2]);
+            i++;
+            i++;
+        } else if (std::strcmp(argv[i], "-h") == 0) {
+            std::cout << helpText;
+        } else if (std::strcmp(argv[i], "-m") == 0) {
+            maxFrames = std::atoi(argv[i + 1]);
+            i++;
+        } else if (std::strcmp(argv[i], "-z") == 0) {
+            autoZoom = true;
+        } else {
+            std::cout << helpText;
+        }
     }
 
     // initiate renderer
@@ -322,6 +334,10 @@ int main(int argc, char* argv[]) {
             if (!autoZoom) {
                 update = false;
             }
+
+            if (maxFrames > 0 && maxFrames <= frameCounter) {
+                window.close();
+            }
         }
 
         // call zoom function if LMB was pressed whilst the cursor is
@@ -340,7 +356,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    std::cout << "Generated " << frameCounter << " frames.";
+    std::cout << "Generated " << frameCounter << " frames.\n";
 
     return 0;
 }

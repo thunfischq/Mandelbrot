@@ -1,5 +1,5 @@
 CXX = g++ -std=c++17
-CXXFLAGS = -g -I/usr/include/SFML
+CXXFLAGS = -O3 -march=native -DNDEBUG -I/usr/include/SFML
 LDFLAGS = -L/usr/lib/x86_64-linux-gnu -lsfml-graphics -lsfml-window -lsfml-system
 
 SRC = $(wildcard src/*.cpp)
