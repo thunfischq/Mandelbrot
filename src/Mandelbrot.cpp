@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <thread>
 #include <vector>
+#include <sstream>
+#include <iomanip>
 
 
 sf::Color black(0, 0, 0);
@@ -17,16 +19,16 @@ sf::Color blue(34, 69, 207);
 sf::Color purple(69, 16, 160);
 
 
-// Simple complex number struct consisting of two floats, being the real and the
+// Simple complex number struct consisting of two doubles, being the real and the
 // imaginary part.
 struct Complex {
-    float real;
-    float imag;
+    double real;
+    double imag;
 };
 
 
 // Initialize complex number by defining its real and imaginary part.
-void initComplex(struct Complex *complex, float real, float imag) {
+void initComplex(struct Complex *complex, double real, double imag) {
     complex->real = real;
     complex->imag = imag;
 }
@@ -35,7 +37,7 @@ void initComplex(struct Complex *complex, float real, float imag) {
 // The absolute value of a complex number, being the distance from (0, 0) in the plain.
 // Calculating SQUARED distance value sqrt(a^2+b^2)^2 = abs(a^2+b^2) instead of normal
 // distance value sqrt(a^2+b^2) for efficiency.
-float absSquared(Complex *complex) {
+double absSquared(Complex *complex) {
     return abs(pow(complex->real, 2) + pow(complex->imag, 2));
 }
 
@@ -43,8 +45,8 @@ float absSquared(Complex *complex) {
 // Square a complex number.
 Complex squareComplex(Complex *complex) {
     Complex newComplex;
-    float real = pow(complex->real, 2) - pow(complex->imag, 2);
-    float imag = 2 * complex->real * complex->imag;
+    double real = pow(complex->real, 2) - pow(complex->imag, 2);
+    double imag = 2 * complex->real * complex->imag;
     initComplex(&newComplex, real, imag);
     return newComplex;
 }
@@ -76,7 +78,7 @@ int mandelbrot(Complex *c, int maxLoops) {
 
 
 // Don't know how this works, ChatGPT told me to do it like this :D
-sf::Color interpolate(sf::Color colorA, sf::Color colorB, float t) {
+sf::Color interpolate(sf::Color colorA, sf::Color colorB, double t) {
     sf::Color interpolatedColor(
             colorA.r + static_cast<sf::Uint8>(t * (colorB.r - colorA.r)),
             colorA.g + static_cast<sf::Uint8>(t * (colorB.g - colorA.g)),
@@ -87,8 +89,8 @@ sf::Color interpolate(sf::Color colorA, sf::Color colorB, float t) {
 
 
 // Creates a color transition: black - red - orange - yellow - green - turkise - blue
-sf::Color color(int i, int maxI, float sixMaxI) {
-    float t;
+sf::Color color(int i, int maxI, double sixMaxI) {
+    double t;
     if ((6 * i) < maxI) {
         t = i * sixMaxI;
         return interpolate(blue, turkise, t);
@@ -123,8 +125,8 @@ sf::Color color(int i, int maxI, float sixMaxI) {
 sf::Color getPixelColor(int x, int y, const Complex* upperLeft, const Complex* lowerRight,
                         int width, int height, int maxI, double sixMaxI) {
     Complex c;
-    float ratioX = (float)x / width;
-    float ratioY = (float)y / height;
+    double ratioX = (double)x / width;
+    double ratioY = (double)y / height;
     initComplex(&c, upperLeft->real + (ratioX * (lowerRight->real - upperLeft->real)),
                     upperLeft->imag + (ratioY * (lowerRight->imag - upperLeft->imag)));
     return color(mandelbrot(&c, maxI), maxI, sixMaxI);
@@ -181,16 +183,24 @@ void divideAndConquer(const Complex* upperLeft, const Complex* lowerRight,
 
 // Zoom into the position of the cursor by 1/10 by moving the upperLeft and lowerRight
 // complex number anchors towards the cursor position by 1/10 of their distance.
-void zoomIn(int x, int y, Complex *upperLeft, Complex *lowerRight, int width, int height, float zoomFactor) {
+void zoomInCursor(int x, int y, Complex *upperLeft, Complex *lowerRight, int width, int height, double zoomFactor) {
     Complex position;
-    float ratioX = (float)x / width;
-    float ratioY = (float)y / height;
+    double ratioX = (double)x / width;
+    double ratioY = (double)y / height;
     initComplex(&position, upperLeft->real + (ratioX * (lowerRight->real - upperLeft->real)),
                     upperLeft->imag + (ratioY * (lowerRight->imag - upperLeft->imag)));
-    upperLeft->real = upperLeft->real + (((float)1/10) * (position.real - upperLeft->real));
-    upperLeft->imag = upperLeft->imag + (((float)1/10) * (position.imag - upperLeft->imag));
-    lowerRight->real = lowerRight->real + (((float)1/10) * (position.real - lowerRight->real));
-    lowerRight->imag = lowerRight->imag + (((float)1/10) * (position.imag - lowerRight->imag));
+    upperLeft->real = upperLeft->real + (zoomFactor * (position.real - upperLeft->real));
+    upperLeft->imag = upperLeft->imag + (zoomFactor * (position.imag - upperLeft->imag));
+    lowerRight->real = lowerRight->real + (zoomFactor * (position.real - lowerRight->real));
+    lowerRight->imag = lowerRight->imag + (zoomFactor * (position.imag - lowerRight->imag));
+}
+
+
+void zoomInAuto(Complex *target, Complex *upperLeft, Complex *lowerRight, double zoomFactor) {
+    upperLeft->real = upperLeft->real + (zoomFactor * (target->real - upperLeft->real));
+    upperLeft->imag = upperLeft->imag + (zoomFactor * (target->imag - upperLeft->imag));
+    lowerRight->real = lowerRight->real + (zoomFactor * (target->real - lowerRight->real));
+    lowerRight->imag = lowerRight->imag + (zoomFactor * (target->imag - lowerRight->imag));
 }
 
 
@@ -202,10 +212,14 @@ int main(int argc, char* argv[]) {
     bool update = true;
     bool sharpen = false;
     bool blur = false;
+    bool autoZoom = false;
+    uint32_t frameCounter = 0;
     Complex upperLeft;
     Complex lowerRight;
+    Complex autoZoomTarget;
     initComplex(&upperLeft, -2.5, 1);
     initComplex(&lowerRight, 1, -1);
+    initComplex(&autoZoomTarget, -0.04332, 0.98630);
 
     // parse optional terminal arguments
     if (argc > 1) {
@@ -228,8 +242,8 @@ int main(int argc, char* argv[]) {
     window.setPosition({0, 0});
     int screenWidth = desktop.width;
     int screenHeight = desktop.height;
-    float scaleX = static_cast<float>(screenWidth) / width;
-    float scaleY = static_cast<float>(screenHeight) / height;
+    double scaleX = static_cast<double>(screenWidth) / width;
+    double scaleY = static_cast<double>(screenHeight) / height;
 
     while (window.isOpen()) {
         sf::Event event;
@@ -240,17 +254,28 @@ int main(int argc, char* argv[]) {
             }
             // sharpen and blur image based on keyboard inputs
             if (event.type == sf::Event::KeyPressed) {
+                // + sharpens the image by increasing maxI
                 if (event.key.code == 47 && sharpen == false) {
-                    maxI += 50;
+                    maxI += 20;
                     sixDivMaxI = (double)6 / maxI;
                     update = true;
                     sharpen = true;
                 }
+                // - blurs the image by decreasing maxI
                 if (event.key.code == 56 && blur == false) {
-                    maxI = std::max(100, maxI - 50);
+                    maxI = std::max(100, maxI - 20);
                     sixDivMaxI = (double)6 / maxI;
                     update = true;
                     blur = true;
+                }
+                // space enables auto-zoom
+                if (event.key.code == 57) {
+                    autoZoom = (!autoZoom);
+                    if (autoZoom) {
+                        update = true;
+                    } else {
+                        update = false;
+                    }
                 }
                 // close window if esc pressed
                 if (event.key.code == sf::Keyboard::Escape) {
@@ -271,6 +296,12 @@ int main(int argc, char* argv[]) {
         if (update) {
             divideAndConquer(&upperLeft, &lowerRight, width, height, maxI,
                             sixDivMaxI, &image);
+            
+            if (autoZoom) {
+                std::ostringstream filename;
+                filename << "frames/frame_" << std::setw(4) << std::setfill('0') << frameCounter++ << ".png";
+                image.saveToFile(filename.str());
+            }
 
             sf::Texture texture;
             sf::Sprite sprite;
@@ -286,19 +317,25 @@ int main(int argc, char* argv[]) {
             window.clear();
             window.draw(sprite);
             window.display();
-            update = false;
+
+            if (!autoZoom) {
+                update = false;
+            }
         }
 
         // call zoom function if LMB was pressed whilst the cursor is
         // inside the program window
         sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
-        if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && !autoZoom) {
             if (mousePosition.x >= 0 && mousePosition.x < screenWidth
                 && mousePosition.y >= 0 && mousePosition.y < screenHeight) {
-                zoomIn(mousePosition.x / scaleX, mousePosition.y / scaleY,
-                        &upperLeft, &lowerRight, width, height, 0.9);
+                zoomInCursor(mousePosition.x / scaleX, mousePosition.y / scaleY,
+                        &upperLeft, &lowerRight, width, height, 0.1);
                 update = true;
             }
+        }
+        if (autoZoom) {
+            zoomInAuto(&autoZoomTarget, &upperLeft, &lowerRight, 0.01);
         }
     }
     return 0;

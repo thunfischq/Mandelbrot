@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+# Generated frames
+frames/*.png
+frames/*.gif

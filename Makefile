@@ -16,3 +16,6 @@ $(TARGET): $(OBJ)
 
 clean:
 	rm -f $(OBJ) $(TARGET)
+
+discard:
+	rm -f frames/*.png frames/*.gif
