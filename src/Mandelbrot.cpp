@@ -214,6 +214,7 @@ int main(int argc, char* argv[]) {
     bool sharpen = false;
     bool blur = false;
     bool autoZoom = false;
+    bool saveFrames = false;
     uint32_t frameCounter = 0;
     int maxFrames = -1;
     Complex upperLeft;
@@ -221,7 +222,7 @@ int main(int argc, char* argv[]) {
     Complex autoZoomTarget;
     initComplex(&upperLeft, -2.5, 1);
     initComplex(&lowerRight, 1, -1);
-    initComplex(&autoZoomTarget, -0.74364386269, 0.13182590271);
+    initComplex(&autoZoomTarget, -0.74364386269, 0.13182590271); // horsesea valley
 
     std::string helpText = "help text\n";
 
@@ -234,13 +235,21 @@ int main(int argc, char* argv[]) {
             i++;
         } else if (std::strcmp(argv[i], "-h") == 0) {
             std::cout << helpText;
+            exit(0);
         } else if (std::strcmp(argv[i], "-m") == 0) {
             maxFrames = std::atoi(argv[i + 1]);
             i++;
-        } else if (std::strcmp(argv[i], "-z") == 0) {
+        } else if (std::strcmp(argv[i], "-a") == 0) {
             autoZoom = true;
+        } else if (std::strcmp(argv[i], "-s") == 0) {
+            saveFrames = true;
+        } else if (std::strcmp(argv[i], "-i") == 0) {
+            maxI = std::atoi(argv[i + 1]);
+            sixDivMaxI = (double)6 / maxI;
+            i++;
         } else {
             std::cout << helpText;
+            exit(0);
         }
     }
 
@@ -307,10 +316,15 @@ int main(int argc, char* argv[]) {
         // update rendering if requested
         if (update) {
             frameCounter++;
+            if (frameCounter % 2 == 0) {
+                maxI += 1;
+            }
+            sixDivMaxI = (double)6 / maxI;
+
             divideAndConquer(&upperLeft, &lowerRight, width, height, maxI,
                             sixDivMaxI, &image);
             
-            if (autoZoom) {
+            if (saveFrames) {
                 std::ostringstream filename;
                 filename << "frames/frame_" << std::setw(4) << std::setfill('0') << frameCounter << ".png";
                 image.saveToFile(filename.str());
@@ -357,6 +371,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << "Generated " << frameCounter << " frames.\n";
+    std::cout << "MaxI " << maxI << "\n";
 
     return 0;
 }
