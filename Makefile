@@ -18,4 +18,4 @@ clean:
 	rm -f $(OBJ) $(TARGET)
 
 discard:
-	rm -f frames/*.png frames/*.gif
+	rm -f frames/*.png frames/*.jpg

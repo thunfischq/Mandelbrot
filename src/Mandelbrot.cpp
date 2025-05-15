@@ -294,12 +294,13 @@ int main(int argc, char* argv[]) {
 
         // update rendering if requested
         if (update) {
+            frameCounter++;
             divideAndConquer(&upperLeft, &lowerRight, width, height, maxI,
                             sixDivMaxI, &image);
             
             if (autoZoom) {
                 std::ostringstream filename;
-                filename << "frames/frame_" << std::setw(4) << std::setfill('0') << frameCounter++ << ".png";
+                filename << "frames/frame_" << std::setw(4) << std::setfill('0') << frameCounter << ".png";
                 image.saveToFile(filename.str());
             }
 
@@ -338,5 +339,8 @@ int main(int argc, char* argv[]) {
             zoomInAuto(&autoZoomTarget, &upperLeft, &lowerRight, 0.01);
         }
     }
+
+    std::cout << "Generated " << frameCounter << " frames.";
+
     return 0;
 }
