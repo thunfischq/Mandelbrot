@@ -218,6 +218,7 @@ int main(int argc, char* argv[]) {
     bool saveFrames = false;
     uint32_t frameCounter = 0;
     int maxFrames = -1;
+    double zoomFactor = 0.1;
     Complex upperLeft;
     Complex lowerRight;
     Complex autoZoomTarget;
@@ -225,7 +226,7 @@ int main(int argc, char* argv[]) {
     initComplex(&lowerRight, 1, -1);
     initComplex(&autoZoomTarget, -0.74364386269, 0.13182590271); // horsesea valley
 
-    std::string helpText = "help text\n";
+    std::string helpText = "Give no optional arguments for a 1280x720 rendering.\nUse LMB to zoom into the position of the cursor or press SPACE to toggle auto zoom. Use:\n-r WIDTH HEIGHT for custom resolution (anything different from 16:9 will be distorted!) [Standard 1280 720]\n-m MAX for a maximum amount of frames before the program auto closes [Standard -1]\n-a to enable auto zoom from the beginning\n-s to save the frames as png's in /frames\n-i MAXI to change the maximum amount of iterations before a pixel is considered black [Standard 100]\n-z ZOOMFACTOR to change how much to zoom in for each new frame [Standard 0.1]\n";
 
     // parse optional terminal arguments
     for (int i = 1; i < argc; i++) {
@@ -246,6 +247,9 @@ int main(int argc, char* argv[]) {
             saveFrames = true;
         } else if (std::strcmp(argv[i], "-i") == 0) {
             maxI = std::atoi(argv[i + 1]);
+            i++;
+        } else if (std::strcmp(argv[i], "-z") == 0) {
+            zoomFactor = std::atof(argv[i + 1]);
             i++;
         } else {
             std::cout << helpText;
@@ -357,17 +361,16 @@ int main(int argc, char* argv[]) {
             if (mousePosition.x >= 0 && mousePosition.x < screenWidth
                 && mousePosition.y >= 0 && mousePosition.y < screenHeight) {
                 zoomInCursor(mousePosition.x / scaleX, mousePosition.y / scaleY,
-                        &upperLeft, &lowerRight, width, height, 0.1);
+                        &upperLeft, &lowerRight, width, height, zoomFactor);
                 update = true;
             }
         }
         if (autoZoom) {
-            zoomInAuto(&autoZoomTarget, &upperLeft, &lowerRight, 0.01);
+            zoomInAuto(&autoZoomTarget, &upperLeft, &lowerRight, zoomFactor);
         }
     }
 
     std::cout << "Generated " << frameCounter << " frames.\n";
-    std::cout << "MaxI " << maxI << "\n";
 
     return 0;
 }
