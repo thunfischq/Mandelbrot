@@ -78,44 +78,46 @@ int mandelbrot(Complex *c, int maxLoops) {
 }
 
 
-// Don't know how this works, ChatGPT told me to do it like this :D
-sf::Color interpolate(sf::Color colorA, sf::Color colorB, double t) {
-    sf::Color interpolatedColor(
-            colorA.r + static_cast<sf::Uint8>(t * (colorB.r - colorA.r)),
-            colorA.g + static_cast<sf::Uint8>(t * (colorB.g - colorA.g)),
-            colorA.b + static_cast<sf::Uint8>(t * (colorB.b - colorA.b))
-        );
-    return interpolatedColor;
+// Converts HSV values to an sf::Color in RGB space
+sf::Color hsvToRgb(float h, float s, float v) {
+    float c = v * s; // Chroma
+    float x = c * (1 - std::fabs(std::fmod(h / 60.0f, 2) - 1));
+    float m = v - c;
+
+    float r, g, b;
+    if (h < 60) {r = c; g = x; b = 0; }
+    else if (h < 120){ r = x; g = c; b = 0; }
+    else if (h < 180){ r = 0; g = c; b = x; }
+    else if (h < 240){ r = 0; g = x; b = c; }
+    else if (h < 300){ r = x; g = 0; b = c; }
+    else             { r = c; g = 0; b = x; }
+
+    return sf::Color(
+        static_cast<sf::Uint8>((r + m) * 255),
+        static_cast<sf::Uint8>((g + m) * 255),
+        static_cast<sf::Uint8>((b + m) * 255)
+    );
 }
 
 
-// Creates a color transition: black - red - orange - yellow - green - turkise - blue
-sf::Color color(int i, int maxI, double sixMaxI) {
-    double t;
-    if ((6 * i) < maxI) {
-        t = i * sixMaxI;
-        return interpolate(blue, turkise, t);
+sf::Color color(int i, int maxI) {
+    if (i >= maxI) {
+        return sf::Color::Black; // Inside the set
     }
-    else if ((3 * i) < maxI) {
-        t = i * sixMaxI - 1;
-        return interpolate(turkise, green, t);
-    }
-    else if ((2 * i) < maxI) {
-        t = i * sixMaxI - 2;
-        return interpolate(green, yellow, t);
-    }
-    else if ((3 * i) < 2 * maxI) {
-        t = i * sixMaxI - 3;
-        return interpolate(yellow, orange, t);
-    }
-    else if ((6 * i) < (5 * maxI)) {
-        t = i * sixMaxI - 4;
-        return interpolate(orange, red, t);
-    }
-    else {
-        t = i * sixMaxI - 5;
-        return interpolate(red, black, t);
-    }
+
+    // Normalized progress (0 to 1)
+    float t = static_cast<float>(i) / 500;
+
+    // Apply nonlinear transformation to compress high values
+    t = std::pow(t, 0.7f); // Adjust this exponent as needed (0.5 = strong stretch, 1.0 = linear)
+
+    // Repeat hue multiple times (e.g., 5 times around the color wheel)
+    float hue = fmod(360.0f * t * 5.0f, 360.0f); // 5 rotations
+
+    float saturation = 1.0f;
+    float value = 1.0f;
+
+    return hsvToRgb(hue, saturation, value);
 }
 
 
@@ -124,26 +126,26 @@ sf::Color color(int i, int maxI, double sixMaxI) {
 // window, then running the "mandelbrot sequence" on it and calculating the color by the
 // amount of loops mandelbrot() returns.
 sf::Color getPixelColor(int x, int y, const Complex* upperLeft, const Complex* lowerRight,
-                        int width, int height, int maxI, double sixMaxI) {
+                        int width, int height, int maxI) {
     Complex c;
     double ratioX = (double)x / width;
     double ratioY = (double)y / height;
     initComplex(&c, upperLeft->real + (ratioX * (lowerRight->real - upperLeft->real)),
                     upperLeft->imag + (ratioY * (lowerRight->imag - upperLeft->imag)));
-    return color(mandelbrot(&c, maxI), maxI, sixMaxI);
+    return color(mandelbrot(&c, maxI), maxI);
 }
 
 
 // Compute rows of pixel in an interleaved pattern for better performance
 void computeRowsInterleaved(int threadId, int threadCount, int width, int height,
-    const Complex& upperLeft, const Complex& lowerRight, int maxI, double sixDivMaxI,
+    const Complex& upperLeft, const Complex& lowerRight, int maxI,
     std::vector<std::vector<sf::Color>>& rowBuffer) {
     // rows are allocated in a module sense, so if there are f.e. 3 workers,
     // worker one will get row 1, 4, 7,... and the other workers accordingly
     for (int y = threadId; y < height; y += threadCount) {
         for (int x = 0; x < width; ++x) {
             sf::Color color = getPixelColor(x, y, &upperLeft, &lowerRight,
-                                            width, height, maxI, sixDivMaxI);
+                                            width, height, maxI);
             rowBuffer[y][x] = color;
         }
     }
@@ -152,7 +154,7 @@ void computeRowsInterleaved(int threadId, int threadCount, int width, int height
 
 // Divide the rows that are to be computed and allocate them to the workers
 void divideAndConquer(const Complex* upperLeft, const Complex* lowerRight,
-                            int width, int height, int maxI, double sixDivMaxI,
+                            int width, int height, int maxI,
                             sf::Image* image) {
     // number of threads based on CPU cores
     const int threadCount = std::thread::hardware_concurrency();
@@ -165,7 +167,7 @@ void divideAndConquer(const Complex* upperLeft, const Complex* lowerRight,
     for (int i = 0; i < threadCount; ++i) {
         threads.emplace_back(computeRowsInterleaved, i, threadCount, width, height,
                              std::cref(*upperLeft), std::cref(*lowerRight), maxI,
-                             sixDivMaxI, std::ref(rowBuffer));
+                            std::ref(rowBuffer));
     }
 
     // wait for all threads to finish
@@ -209,7 +211,6 @@ int main(int argc, char* argv[]) {
     int width = 1280;
     int height = 720;
     int maxI = 100;
-    double sixDivMaxI = (double)6 / maxI; // used to make color calculation more efficient
     bool update = true;
     bool sharpen = false;
     bool blur = false;
@@ -245,7 +246,6 @@ int main(int argc, char* argv[]) {
             saveFrames = true;
         } else if (std::strcmp(argv[i], "-i") == 0) {
             maxI = std::atoi(argv[i + 1]);
-            sixDivMaxI = (double)6 / maxI;
             i++;
         } else {
             std::cout << helpText;
@@ -278,14 +278,12 @@ int main(int argc, char* argv[]) {
                 // + sharpens the image by increasing maxI
                 if (event.key.code == 47 && sharpen == false) {
                     maxI += 20;
-                    sixDivMaxI = (double)6 / maxI;
                     update = true;
                     sharpen = true;
                 }
                 // - blurs the image by decreasing maxI
                 if (event.key.code == 56 && blur == false) {
                     maxI = std::max(100, maxI - 20);
-                    sixDivMaxI = (double)6 / maxI;
                     update = true;
                     blur = true;
                 }
@@ -317,12 +315,10 @@ int main(int argc, char* argv[]) {
         if (update) {
             frameCounter++;
             if (frameCounter % 2 == 0) {
-                maxI += 1;
+                // maxI += 1;
             }
-            sixDivMaxI = (double)6 / maxI;
 
-            divideAndConquer(&upperLeft, &lowerRight, width, height, maxI,
-                            sixDivMaxI, &image);
+            divideAndConquer(&upperLeft, &lowerRight, width, height, maxI, &image);
             
             if (saveFrames) {
                 std::ostringstream filename;
