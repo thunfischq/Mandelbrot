@@ -210,12 +210,19 @@ void zoomInAuto(Complex *target, Complex *upperLeft, Complex *lowerRight, double
 int main(int argc, char* argv[]) {
     int width = 1280;
     int height = 720;
+
+    int mouseX;
+    int mouseY;
+    int windwowWidth;
+    int windwowHeight;
+
     int maxI = 100;
     bool update = true;
     bool sharpen = false;
     bool blur = false;
     bool autoZoom = false;
     bool saveFrames = false;
+    bool fullscreen = false;
     uint32_t frameCounter = 0;
     int maxFrames = -1;
     double zoomFactor = 0.1;
@@ -226,7 +233,7 @@ int main(int argc, char* argv[]) {
     initComplex(&lowerRight, 1, -1);
     initComplex(&autoZoomTarget, -0.74364386269, 0.13182590271); // horsesea valley
 
-    std::string helpText = "Give no optional arguments for a 1280x720 rendering.\nUse LMB to zoom into the position of the cursor or press SPACE to toggle auto zoom. Use:\n-r WIDTH HEIGHT for custom resolution (anything different from 16:9 will be distorted!) [Standard 1280 720]\n-m MAX for a maximum amount of frames before the program auto closes [Standard -1]\n-a to enable auto zoom from the beginning\n-s to save the frames as png's in /frames\n-i MAXI to change the maximum amount of iterations before a pixel is considered black [Standard 100]\n-z ZOOMFACTOR to change how much to zoom in for each new frame [Standard 0.1]\n";
+    std::string helpText = "Give no optional arguments for a 1280x720 rendering.\nUse LMB to zoom into the position of the cursor, press SPACE to toggle auto zoom and f to toggle fullscreen. Use:\n-r WIDTH HEIGHT for custom resolution (anything different from 16:9 will be distorted!) [Standard 1280 720]\n-m MAX for a maximum amount of frames before the program auto closes [Standard -1]\n-a to enable auto zoom from the beginning\n-s to save the frames as png's in /frames\n-i MAXI to change the maximum amount of iterations before a pixel is considered black [Standard 100]\n-z ZOOMFACTOR to change how much to zoom in for each new frame [Standard 0.1]\n-f to enable fullscreen at startup";
 
     // parse optional terminal arguments
     for (int i = 1; i < argc; i++) {
@@ -251,6 +258,8 @@ int main(int argc, char* argv[]) {
         } else if (std::strcmp(argv[i], "-z") == 0) {
             zoomFactor = std::atof(argv[i + 1]);
             i++;
+        } else if (std::strcmp(argv[i], "-f") == 0) {
+            fullscreen = true;
         } else {
             std::cout << helpText;
             exit(0);
@@ -258,15 +267,26 @@ int main(int argc, char* argv[]) {
     }
 
     // initiate renderer
-    sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
-    sf::RenderWindow window(desktop, "Mandelbrot", sf::Style::None);
+    sf::VideoMode desktopFull = sf::VideoMode::getDesktopMode();
+
+    // Set window mode depending on fullscreen flag
+    sf::VideoMode videoMode = fullscreen ? sf::VideoMode::getDesktopMode()
+                                     : sf::VideoMode(width, height);
+
+    // Set window style
+    sf::Uint32 style = fullscreen ? sf::Style::Fullscreen : sf::Style::Default;
+
+    // Create window
+    sf::RenderWindow window(videoMode, "Mandelbrot", style);
 
     // compute scaling
     sf::Image image;
     image.create(width, height);
-    window.setPosition({0, 0});
-    int screenWidth = desktop.width;
-    int screenHeight = desktop.height;
+    if (fullscreen) {
+        window.setPosition({0, 0});
+    }
+    int screenWidth = desktopFull.width;
+    int screenHeight = desktopFull.height;
     double scaleX = static_cast<double>(screenWidth) / width;
     double scaleY = static_cast<double>(screenHeight) / height;
 
@@ -281,13 +301,13 @@ int main(int argc, char* argv[]) {
             if (event.type == sf::Event::KeyPressed) {
                 // + sharpens the image by increasing maxI
                 if (event.key.code == 47 && sharpen == false) {
-                    maxI += 20;
+                    maxI += 10;
                     update = true;
                     sharpen = true;
                 }
                 // - blurs the image by decreasing maxI
                 if (event.key.code == 56 && blur == false) {
-                    maxI = std::max(100, maxI - 20);
+                    maxI = std::max(100, maxI - 10);
                     update = true;
                     blur = true;
                 }
@@ -299,6 +319,27 @@ int main(int argc, char* argv[]) {
                     } else {
                         update = false;
                     }
+                }
+                // f toggles fullscreen
+                if (event.key.code == 5) {
+                    fullscreen = !fullscreen;
+
+                    // Close current window
+                    window.close();
+
+                    // Recreate with new mode
+                    sf::VideoMode newMode = fullscreen ? sf::VideoMode::getDesktopMode()
+                                                        : sf::VideoMode(width, height);
+                    sf::Uint32 newStyle = fullscreen ? sf::Style::Fullscreen
+                                                        : sf::Style::Default;
+
+                    window.create(newMode, "Mandelbrot", newStyle);
+
+                    if (fullscreen) {
+                        window.setPosition({0, 0});
+                    }
+                    
+                    update = true;
                 }
                 // close window if esc pressed
                 if (event.key.code == sf::Keyboard::Escape) {
@@ -337,8 +378,10 @@ int main(int argc, char* argv[]) {
             texture.setSmooth(true);
             sprite.setTexture(texture);
 
-            // scale sprite with dimensions (width, height) to (screenWidth, screenHeight)
-            sprite.setScale(scaleX, scaleY);
+            // scale sprite with dimensions (width, height) to (screenWidth, screenHeight) if fullscreen
+            if (fullscreen) {
+                sprite.setScale(scaleX, scaleY);
+            }
 
             // clear previous image and draw new one
             window.clear();
@@ -357,11 +400,26 @@ int main(int argc, char* argv[]) {
         // call zoom function if LMB was pressed whilst the cursor is
         // inside the program window
         sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
+
         if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && !autoZoom) {
-            if (mousePosition.x >= 0 && mousePosition.x < screenWidth
-                && mousePosition.y >= 0 && mousePosition.y < screenHeight) {
-                zoomInCursor(mousePosition.x / scaleX, mousePosition.y / scaleY,
-                        &upperLeft, &lowerRight, width, height, zoomFactor);
+            // std::cout << "x: " << mousePosition.x << "\n";
+            // std::cout << "y: " << mousePosition.y << "\n\n";
+            if (fullscreen) {
+                mouseX = mousePosition.x / scaleX;
+                mouseY = mousePosition.y / scaleX;
+                windwowWidth = screenWidth;
+                windwowHeight = screenHeight;
+            } else {
+                mouseX = mousePosition.x;
+                mouseY = mousePosition.y;
+                windwowWidth = width;
+                windwowHeight = height;
+            }
+
+            if (mousePosition.x >= 0 && mousePosition.x < windwowWidth
+                && mousePosition.y >= 0 && mousePosition.y < windwowHeight) {
+                zoomInCursor(mouseX, mouseY, &upperLeft, &lowerRight, width, height,
+                            zoomFactor);
                 update = true;
             }
         }
