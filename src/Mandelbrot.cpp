@@ -184,8 +184,9 @@ void divideAndConquer(const Complex* upperLeft, const Complex* lowerRight,
 }
 
 
-// Zoom into the position of the cursor by 1/10 by moving the upperLeft and lowerRight
-// complex number anchors towards the cursor position by 1/10 of their distance.
+// Zoom into the position of the cursor by zoomFactor by moving the upperLeft and
+// lowerRight complex number anchors towards the cursor position by zoomFactor of
+// their distance.
 void zoomInCursor(int x, int y, Complex *upperLeft, Complex *lowerRight,
                     int width, int height, double zoomFactor) {
     Complex position;
@@ -200,6 +201,9 @@ void zoomInCursor(int x, int y, Complex *upperLeft, Complex *lowerRight,
 }
 
 
+// Zoom into the auto zoom target coordinates by zoomFactor by moving the upperLeft and
+// lowerRight complex number anchors towards the cursor position by zoomFactor of their
+// distance.
 void zoomInAuto(Complex *target, Complex *upperLeft, Complex *lowerRight, double zoomFactor) {
     upperLeft->real = upperLeft->real + (zoomFactor * (target->real - upperLeft->real));
     upperLeft->imag = upperLeft->imag + (zoomFactor * (target->imag - upperLeft->imag));
@@ -208,23 +212,28 @@ void zoomInAuto(Complex *target, Complex *upperLeft, Complex *lowerRight, double
 }
 
 
+// update debug text containing the coordinates of the cursor as (real, imag) and
+// update the backgroud text box
 void updateTextRender(Complex *upperLeft, Complex *lowerRight, sf::Text* debugText,
                         sf::FloatRect* textBounds, sf::RectangleShape* background,
                         double* mouseReal, double* mouseImag, int mouseX, int mouseY,
                         int windowWidth, int windowHeight) {
-
+    
+    // compute real and imag coordinates of cursor
     (*mouseReal) = upperLeft->real + ((mouseX /
                     static_cast<double>(windowWidth))
                     * (lowerRight->real - upperLeft->real));
     (*mouseImag) = upperLeft->imag + ((mouseY /
                     static_cast<double>(windowHeight))
                     * (lowerRight->imag - upperLeft->imag));
-            
+    
+    // write coordinates into debug text
     std::ostringstream cords;
     cords << std::fixed << std::setprecision(16) << (*mouseReal) << "\n"
             << std::fixed << std::setprecision(16) << (*mouseImag);
     (*debugText).setString(cords.str());
 
+    // update text box
     (*textBounds) = (*debugText).getLocalBounds();
     (*background).setSize(sf::Vector2f((*textBounds).width + 10,
                             (*textBounds).height + 15));
@@ -318,7 +327,7 @@ int main(int argc, char* argv[]) {
         window.setPosition(sf::Vector2i(0, 0));
     }
 
-    // initiate screen scaling
+    // initiate screen scaling for fullscreen
     sf::Image image;
     image.create(width, height);
     int screenWidth = desktopFull.width;
@@ -422,6 +431,7 @@ int main(int argc, char* argv[]) {
             windowWidth = width;
             windowHeight = height;
         }
+
         // update text if mouse has been moved
         // this way, text is updated even when sprite isn't
         if ((mouseX != mouseOldX || mouseY != mouseOldY)
@@ -502,10 +512,12 @@ int main(int argc, char* argv[]) {
             texture.setSmooth(true);
             sprite.setTexture(texture);
             
+            // scale sprite with dimensions (width, height) to (screenWidth, screenHeight)
             if (fullscreen) {
                 sprite.setScale(scaleX, scaleY);
             }
 
+            // clear previous image and draw new one
             window.clear();
             window.draw(sprite);
             if (renderText) {
