@@ -109,7 +109,7 @@ sf::Color color(int i, int maxI) {
     float t = static_cast<float>(i) / 500;
 
     // Apply nonlinear transformation to compress high values
-    t = std::pow(t, 0.9f); // Adjust this exponent as needed (0.5 = strong stretch, 1.0 = linear)
+    t = std::pow(t, 0.9f); // (0.5 = strong stretch, 1.0 = linear)
 
     // Repeat hue multiple times
     float hue = fmod(360.0f * t * 1.2f, 360.0f);
@@ -186,7 +186,8 @@ void divideAndConquer(const Complex* upperLeft, const Complex* lowerRight,
 
 // Zoom into the position of the cursor by 1/10 by moving the upperLeft and lowerRight
 // complex number anchors towards the cursor position by 1/10 of their distance.
-void zoomInCursor(int x, int y, Complex *upperLeft, Complex *lowerRight, int width, int height, double zoomFactor) {
+void zoomInCursor(int x, int y, Complex *upperLeft, Complex *lowerRight,
+                    int width, int height, double zoomFactor) {
     Complex position;
     double ratioX = (double)x / width;
     double ratioY = (double)y / height;
@@ -204,6 +205,32 @@ void zoomInAuto(Complex *target, Complex *upperLeft, Complex *lowerRight, double
     upperLeft->imag = upperLeft->imag + (zoomFactor * (target->imag - upperLeft->imag));
     lowerRight->real = lowerRight->real + (zoomFactor * (target->real - lowerRight->real));
     lowerRight->imag = lowerRight->imag + (zoomFactor * (target->imag - lowerRight->imag));
+}
+
+
+void updateTextRender(Complex *upperLeft, Complex *lowerRight, sf::Text* debugText,
+                        sf::FloatRect* textBounds, sf::RectangleShape* background,
+                        double* mouseReal, double* mouseImag, int mouseX, int mouseY,
+                        int windowWidth, int windowHeight) {
+
+    (*mouseReal) = upperLeft->real + ((mouseX /
+                    static_cast<double>(windowWidth))
+                    * (lowerRight->real - upperLeft->real));
+    (*mouseImag) = upperLeft->imag + ((mouseY /
+                    static_cast<double>(windowHeight))
+                    * (lowerRight->imag - upperLeft->imag));
+            
+    std::ostringstream cords;
+    cords << std::fixed << std::setprecision(16) << (*mouseReal) << "\n"
+            << std::fixed << std::setprecision(16) << (*mouseImag);
+    (*debugText).setString(cords.str());
+
+    (*textBounds) = (*debugText).getLocalBounds();
+    (*background).setSize(sf::Vector2f((*textBounds).width + 10,
+                            (*textBounds).height + 15));
+    (*background).setFillColor(sf::Color::Black);
+    (*background).setPosition((*debugText).getPosition().x - 5,
+                                (*debugText).getPosition().y - 5);
 }
 
 
@@ -282,24 +309,22 @@ int main(int argc, char* argv[]) {
 
     // initiate renderer
     sf::VideoMode desktopFull = sf::VideoMode::getDesktopMode();
-
-    // Set window mode depending on fullscreen flag
     sf::VideoMode videoMode = fullscreen ? sf::VideoMode::getDesktopMode()
                                      : sf::VideoMode(width, height);
-
-    // Set window style
     sf::Uint32 style = fullscreen ? sf::Style::None: sf::Style::Default;
-
-    // Create window
     sf::RenderWindow window(videoMode, "Mandelbrot", style);
 
     if (fullscreen) {
         window.setPosition(sf::Vector2i(0, 0));
     }
 
-    // compute scaling
+    // initiate screen scaling
     sf::Image image;
     image.create(width, height);
+    int screenWidth = desktopFull.width;
+    int screenHeight = desktopFull.height;
+    double scaleX = static_cast<double>(screenWidth) / width;
+    double scaleY = static_cast<double>(screenHeight) / height;
 
     // initiate font
     sf::Font font;
@@ -314,19 +339,14 @@ int main(int argc, char* argv[]) {
     debugText.setFillColor(sf::Color::White);
     debugText.setPosition(5, 5);
     debugText.setString("Not supposed to see this :)");
-
     sf::FloatRect textBounds = debugText.getLocalBounds();
     sf::RectangleShape background;
 
-    int screenWidth = desktopFull.width;
-    int screenHeight = desktopFull.height;
-    double scaleX = static_cast<double>(screenWidth) / width;
-    double scaleY = static_cast<double>(screenHeight) / height;
-
+    // main loop
     while (window.isOpen()) {
+        // handle keyboard input
         sf::Event event;
         while (window.pollEvent(event)) {
-            // handle keyboard input
             if (event.type == sf::Event::Closed) {
                 window.close();
             }
@@ -362,15 +382,11 @@ int main(int argc, char* argv[]) {
                 if (event.key.code == 5) {
                     fullscreen = !fullscreen;
 
-                    // Close current window
                     window.close();
-
-                    // Recreate with new mode
                     sf::VideoMode newMode = fullscreen ? sf::VideoMode::getDesktopMode()
                                                         : sf::VideoMode(width, height);
                     sf::Uint32 newStyle = fullscreen ? sf::Style::None
                                                         : sf::Style::Default;
-
                     window.create(newMode, "Mandelbrot", newStyle);
                     
                     if (fullscreen) {
@@ -384,6 +400,7 @@ int main(int argc, char* argv[]) {
                     window.close();
                 }
             }
+            // probably not needed but oh well
             if (event.type == sf::Event::KeyReleased) {
                 if (event.key.code == 47) {
                     sharpen = false;
@@ -407,13 +424,16 @@ int main(int argc, char* argv[]) {
         }
         // update text if mouse has been moved
         // this way, text is updated even when sprite isn't
-        if (mouseX != mouseOldX || mouseY != mouseOldY) {
+        if ((mouseX != mouseOldX || mouseY != mouseOldY)
+            && mousePosition.x >= 0 && mousePosition.x < windowWidth
+            && mousePosition.y >= 0 && mousePosition.y < windowHeight) {
+
             mouseOldX = mouseX;
             mouseOldY = mouseY;
             updateText = true;
         }
 
-        // update rendering if requested
+        // update rendering
         if (update) {
             frameCounter++;
             //if (frameCounter % 1 == 0) {
@@ -425,27 +445,16 @@ int main(int argc, char* argv[]) {
 
             // update text box logic
             if (renderText) {
-                mouseReal = upperLeft.real + ((mouseX /
-                        static_cast<double>(windowWidth))
-                        * (lowerRight.real - upperLeft.real));
-                mouseImag = upperLeft.imag + ((mouseY /
-                        static_cast<double>(windowHeight))
-                        * (lowerRight.imag - upperLeft.imag));
-            
-                std::ostringstream cords;
-                cords << std::fixed << std::setprecision(16) << mouseReal << "\n"
-                        << std::fixed << std::setprecision(16) << mouseImag;
-                debugText.setString(cords.str());
-
-                textBounds = debugText.getLocalBounds();
-                background.setSize(sf::Vector2f(textBounds.width + 10, textBounds.height + 15));
-                background.setFillColor(sf::Color::Black);
-                background.setPosition(debugText.getPosition().x - 5, debugText.getPosition().y - 5);
+                updateTextRender(&upperLeft, &lowerRight, &debugText, &textBounds,
+                                &background, &mouseReal, &mouseImag, mouseX, mouseY,
+                                windowWidth, windowHeight);
             }
             
+            // store frame as png
             if (saveFrames) {
                 std::ostringstream filename;
-                filename << "frames/frame_" << std::setw(4) << std::setfill('0') << frameCounter << ".png";
+                filename << "frames/frame_" << std::setw(4) << std::setfill('0')
+                            << frameCounter << ".png";
                 image.saveToFile(filename.str());
             }
 
@@ -456,7 +465,7 @@ int main(int argc, char* argv[]) {
             texture.setSmooth(true);
             sprite.setTexture(texture);
 
-            // scale sprite with dimensions (width, height) to (screenWidth, screenHeight) if fullscreen
+            // scale sprite with dimensions (width, height) to (screenWidth, screenHeight)
             if (fullscreen) {
                 sprite.setScale(scaleX, scaleY);
             }
@@ -477,26 +486,13 @@ int main(int argc, char* argv[]) {
             if (maxFrames > 0 && maxFrames <= frameCounter) {
                 window.close();
             }
-        // only update text, still need to draw everything
-        } else if (updateText && mousePosition.x >= 0 && mousePosition.x < windowWidth
-                && mousePosition.y >= 0 && mousePosition.y < windowHeight) {  
+        // only update debug text, still need to draw everything
+        } else if (updateText) {  
             // update text box logic  
             if (renderText) {
-                mouseReal = upperLeft.real + ((mouseX /
-                            static_cast<double>(windowWidth))
-                            * (lowerRight.real - upperLeft.real));
-                mouseImag = upperLeft.imag + ((mouseY /
-                            static_cast<double>(windowHeight))
-                            * (lowerRight.imag - upperLeft.imag));
-                std::ostringstream cords;
-                cords << std::fixed << std::setprecision(16) << mouseReal << "\n"
-                        << std::fixed << std::setprecision(16) << mouseImag;
-                debugText.setString(cords.str());
-
-                textBounds = debugText.getLocalBounds();
-                background.setSize(sf::Vector2f(textBounds.width + 10, textBounds.height + 15));
-                background.setFillColor(sf::Color::Black);
-                background.setPosition(debugText.getPosition().x - 5, debugText.getPosition().y - 5);
+                updateTextRender(&upperLeft, &lowerRight, &debugText, &textBounds,
+                                &background, &mouseReal, &mouseImag, mouseX, mouseY,
+                                windowWidth, windowHeight);
             }
 
             sf::Texture texture;
