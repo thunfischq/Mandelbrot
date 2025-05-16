@@ -45,4 +45,11 @@ For a list of optional terminal arguments:
 
 - Toggle fullscreen by pressing f
 
-- Sharpen / blur the image by pressing + / - 
+- Sharpen / blur the image by pressing + / -
+
+# Generate video using ffmpeg
+
+FFmpeg is a powerful tool with many optional workmodes and arguments. What worked fine for me was, after havin generated the frames using -s, running:
+
+    ffmpeg -framerate 30 -i frames/frame_%04d.png -c:v libx264 -crf 1 -preset slow -pix_fmt yuv444p frames/output.mp4
+

@@ -274,17 +274,19 @@ int main(int argc, char* argv[]) {
                                      : sf::VideoMode(width, height);
 
     // Set window style
-    sf::Uint32 style = fullscreen ? sf::Style::Fullscreen : sf::Style::Default;
+    sf::Uint32 style = fullscreen ? sf::Style::None: sf::Style::Default;
 
     // Create window
     sf::RenderWindow window(videoMode, "Mandelbrot", style);
 
+    if (fullscreen) {
+        window.setPosition(sf::Vector2i(0, 0));
+    }
+
     // compute scaling
     sf::Image image;
     image.create(width, height);
-    if (fullscreen) {
-        window.setPosition({0, 0});
-    }
+
     int screenWidth = desktopFull.width;
     int screenHeight = desktopFull.height;
     double scaleX = static_cast<double>(screenWidth) / width;
@@ -330,13 +332,13 @@ int main(int argc, char* argv[]) {
                     // Recreate with new mode
                     sf::VideoMode newMode = fullscreen ? sf::VideoMode::getDesktopMode()
                                                         : sf::VideoMode(width, height);
-                    sf::Uint32 newStyle = fullscreen ? sf::Style::Fullscreen
+                    sf::Uint32 newStyle = fullscreen ? sf::Style::None
                                                         : sf::Style::Default;
 
                     window.create(newMode, "Mandelbrot", newStyle);
-
+                    
                     if (fullscreen) {
-                        window.setPosition({0, 0});
+                        window.setPosition(sf::Vector2i(0, 0));
                     }
                     
                     update = true;
