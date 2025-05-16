@@ -13,9 +13,15 @@ Below you see an example image rendered in 1920x1080 (left) and a low-quality zo
 
 Requires SFML library. On Ubuntu, install it via:
 
-    sudo apt-get install libsfml-dev
+    sudo apt install libsfml-dev
 
 For anything else, the installation paths in the Makefile will probably need to be adjusted.
+
+### Optional
+
+For generating a video out of the png frames, one can use ffmpeg. On Ubuntu, install it via:
+
+    sudo apt install ffmpeg
 
 # Run
 
@@ -27,10 +33,16 @@ and then run the executable:
 
     ./bin/Mandelbrot
 
-Resolution of rendering (not drawing) is 1280x720 normally. Different resolutions can be given as optional arguments:
+For a list of optional terminal arguments:
 
-    ./bin/Mandelbrot -r 1920 1080
+    ./bin/Mandelbrot -h
 
-## Controls
+### Controls
 
-- Zoom into the location of the mouse cursor by pressing LMB.
+- Zoom into the location of the mouse cursor by pressing LMB
+
+- Toggle auto zoom by pressing SPACE
+
+- Toggle fullscreen by pressing f
+
+- Sharpen / blur the image by pressing + / - 

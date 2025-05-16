@@ -233,7 +233,7 @@ int main(int argc, char* argv[]) {
     initComplex(&lowerRight, 1, -1);
     initComplex(&autoZoomTarget, -0.74364386269, 0.13182590271); // horsesea valley
 
-    std::string helpText = "Give no optional arguments for a 1280x720 rendering.\nUse LMB to zoom into the position of the cursor, press SPACE to toggle auto zoom and f to toggle fullscreen. Use:\n-r WIDTH HEIGHT for custom resolution (anything different from 16:9 will be distorted!) [Standard 1280 720]\n-m MAX for a maximum amount of frames before the program auto closes [Standard -1]\n-a to enable auto zoom from the beginning\n-s to save the frames as png's in /frames\n-i MAXI to change the maximum amount of iterations before a pixel is considered black [Standard 100]\n-z ZOOMFACTOR to change how much to zoom in for each new frame [Standard 0.1]\n-f to enable fullscreen at startup";
+    std::string helpText = "Give no optional arguments for a 1280x720 rendering.\n\nUse LMB to zoom into the position of the cursor, press SPACE to toggle auto zoom and f to toggle fullscreen.\n\nUse:\n-r WIDTH HEIGHT for custom resolution (anything different from 16:9 will be distorted!) [Standard 1280 720]\n-m MAX for a maximum amount of frames before the program auto closes [Standard -1]\n-a to enable auto zoom from the beginning\n-s to save the frames as png's in /frames\n-i MAXI to change the maximum amount of iterations before a pixel is considered black [Standard 100]\n-z ZOOMFACTOR to change how much to zoom in for each new frame [Standard 0.1]\n-f to enable fullscreen at startup\n";
 
     // parse optional terminal arguments
     for (int i = 1; i < argc; i++) {
