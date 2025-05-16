@@ -109,13 +109,13 @@ sf::Color color(int i, int maxI) {
     float t = static_cast<float>(i) / 500;
 
     // Apply nonlinear transformation to compress high values
-    t = std::pow(t, 0.7f); // Adjust this exponent as needed (0.5 = strong stretch, 1.0 = linear)
+    t = std::pow(t, 0.9f); // Adjust this exponent as needed (0.5 = strong stretch, 1.0 = linear)
 
-    // Repeat hue multiple times (e.g., 5 times around the color wheel)
-    float hue = fmod(360.0f * t * 5.0f, 360.0f); // 5 rotations
+    // Repeat hue multiple times
+    float hue = fmod(360.0f * t * 1.2f, 360.0f);
 
-    float saturation = 1.0f;
-    float value = 1.0f;
+    float saturation = 0.8f;
+    float value = 0.9f;
 
     return hsvToRgb(hue, saturation, value);
 }
@@ -213,27 +213,34 @@ int main(int argc, char* argv[]) {
 
     int mouseX;
     int mouseY;
-    int windwowWidth;
-    int windwowHeight;
+    int windowWidth;
+    int windowHeight;
+    double mouseReal;
+    double mouseImag;
+    int mouseOldX = -1;
+    int mouseOldY = -1;
 
     int maxI = 100;
     bool update = true;
+    bool updateText = true;
     bool sharpen = false;
     bool blur = false;
     bool autoZoom = false;
     bool saveFrames = false;
     bool fullscreen = false;
+    bool renderText = false;
     uint32_t frameCounter = 0;
     int maxFrames = -1;
     double zoomFactor = 0.1;
+
     Complex upperLeft;
     Complex lowerRight;
-    Complex autoZoomTarget;
+    Complex autoZoomTarget; // horsesea valley
     initComplex(&upperLeft, -2.5, 1);
     initComplex(&lowerRight, 1, -1);
-    initComplex(&autoZoomTarget, -0.74364386269, 0.13182590271); // horsesea valley
+    initComplex(&autoZoomTarget, -0.7435849988388146, 0.1318760846245895);
 
-    std::string helpText = "Give no optional arguments for a 1280x720 rendering.\n\nUse LMB to zoom into the position of the cursor, press SPACE to toggle auto zoom and f to toggle fullscreen.\n\nUse:\n-r WIDTH HEIGHT for custom resolution (anything different from 16:9 will be distorted!) [Standard 1280 720]\n-m MAX for a maximum amount of frames before the program auto closes [Standard -1]\n-a to enable auto zoom from the beginning\n-s to save the frames as png's in /frames\n-i MAXI to change the maximum amount of iterations before a pixel is considered black [Standard 100]\n-z ZOOMFACTOR to change how much to zoom in for each new frame [Standard 0.1]\n-f to enable fullscreen at startup\n";
+    std::string helpText = "Give no optional arguments for a 1280x720 rendering.\n\nUse LMB to zoom into the position of the cursor, press SPACE to toggle auto zoom, f to toggle fullscreen and t to toggle debug text.\n\nUse:\n-r WIDTH HEIGHT for custom resolution (anything different from 16:9 will be distorted!) [Standard 1280 720]\n-c REAL IMAG for custom zoom coordinates [Standard -0.7435... 0.1318...]\n-m MAX for a maximum amount of frames before the program auto closes [Standard -1]\n-a to enable auto zoom from the beginning\n-s to save the frames as png's in /frames\n-i MAXI to change the maximum amount of iterations before a pixel is considered black [Standard 100]\n-z ZOOMFACTOR to change how much to zoom in for each new frame [Standard 0.1]\n-f to enable fullscreen at startup\n-t to enable debug text at startup";
 
     // parse optional terminal arguments
     for (int i = 1; i < argc; i++) {
@@ -260,6 +267,13 @@ int main(int argc, char* argv[]) {
             i++;
         } else if (std::strcmp(argv[i], "-f") == 0) {
             fullscreen = true;
+        } else if (std::strcmp(argv[i], "-t") == 0) {
+            renderText = true;
+        } else if (std::strcmp(argv[i], "-c") == 0) {
+            autoZoomTarget.real = std::atof(argv[i + 1]);
+            autoZoomTarget.imag = std::atof(argv[i + 2]);
+            i++;
+            i++;
         } else {
             std::cout << helpText;
             exit(0);
@@ -286,6 +300,23 @@ int main(int argc, char* argv[]) {
     // compute scaling
     sf::Image image;
     image.create(width, height);
+
+    // initiate font
+    sf::Font font;
+    if (!font.loadFromFile(".Ubuntu-R.ttf")) {
+        std::cout << "Problem loading font!\n";
+    }
+
+    // initiate text
+    sf::Text debugText;
+    debugText.setFont(font);
+    debugText.setCharacterSize(16);
+    debugText.setFillColor(sf::Color::White);
+    debugText.setPosition(5, 5);
+    debugText.setString("Not supposed to see this :)");
+
+    sf::FloatRect textBounds = debugText.getLocalBounds();
+    sf::RectangleShape background;
 
     int screenWidth = desktopFull.width;
     int screenHeight = desktopFull.height;
@@ -321,6 +352,11 @@ int main(int argc, char* argv[]) {
                     } else {
                         update = false;
                     }
+                }
+                // t toggles debug text rendering
+                if (event.key.code == 19) {
+                    renderText = !renderText;
+                    updateText = true;
                 }
                 // f toggles fullscreen
                 if (event.key.code == 5) {
@@ -358,14 +394,54 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        // update mouse and window position / dimension
+        sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
+        mouseX = mousePosition.x;
+        mouseY = mousePosition.y;
+        if (fullscreen) {
+            windowWidth = screenWidth;
+            windowHeight = screenHeight;
+        } else {
+            windowWidth = width;
+            windowHeight = height;
+        }
+        // update text if mouse has been moved
+        // this way, text is updated even when sprite isn't
+        if (mouseX != mouseOldX || mouseY != mouseOldY) {
+            mouseOldX = mouseX;
+            mouseOldY = mouseY;
+            updateText = true;
+        }
+
         // update rendering if requested
         if (update) {
             frameCounter++;
-            if (frameCounter % 2 == 0) {
-                // maxI += 1;
-            }
+            //if (frameCounter % 1 == 0) {
+            //    maxI += 1;
+            //}
 
+            // main mandelbrot update logic
             divideAndConquer(&upperLeft, &lowerRight, width, height, maxI, &image);
+
+            // update text box logic
+            if (renderText) {
+                mouseReal = upperLeft.real + ((mouseX /
+                        static_cast<double>(windowWidth))
+                        * (lowerRight.real - upperLeft.real));
+                mouseImag = upperLeft.imag + ((mouseY /
+                        static_cast<double>(windowHeight))
+                        * (lowerRight.imag - upperLeft.imag));
+            
+                std::ostringstream cords;
+                cords << std::fixed << std::setprecision(16) << mouseReal << "\n"
+                        << std::fixed << std::setprecision(16) << mouseImag;
+                debugText.setString(cords.str());
+
+                textBounds = debugText.getLocalBounds();
+                background.setSize(sf::Vector2f(textBounds.width + 10, textBounds.height + 15));
+                background.setFillColor(sf::Color::Black);
+                background.setPosition(debugText.getPosition().x - 5, debugText.getPosition().y - 5);
+            }
             
             if (saveFrames) {
                 std::ostringstream filename;
@@ -388,6 +464,10 @@ int main(int argc, char* argv[]) {
             // clear previous image and draw new one
             window.clear();
             window.draw(sprite);
+            if (renderText) {
+                window.draw(background);
+                window.draw(debugText);
+            }
             window.display();
 
             if (!autoZoom) {
@@ -397,40 +477,76 @@ int main(int argc, char* argv[]) {
             if (maxFrames > 0 && maxFrames <= frameCounter) {
                 window.close();
             }
+        // only update text, still need to draw everything
+        } else if (updateText && mousePosition.x >= 0 && mousePosition.x < windowWidth
+                && mousePosition.y >= 0 && mousePosition.y < windowHeight) {  
+            // update text box logic  
+            if (renderText) {
+                mouseReal = upperLeft.real + ((mouseX /
+                            static_cast<double>(windowWidth))
+                            * (lowerRight.real - upperLeft.real));
+                mouseImag = upperLeft.imag + ((mouseY /
+                            static_cast<double>(windowHeight))
+                            * (lowerRight.imag - upperLeft.imag));
+                std::ostringstream cords;
+                cords << std::fixed << std::setprecision(16) << mouseReal << "\n"
+                        << std::fixed << std::setprecision(16) << mouseImag;
+                debugText.setString(cords.str());
+
+                textBounds = debugText.getLocalBounds();
+                background.setSize(sf::Vector2f(textBounds.width + 10, textBounds.height + 15));
+                background.setFillColor(sf::Color::Black);
+                background.setPosition(debugText.getPosition().x - 5, debugText.getPosition().y - 5);
+            }
+
+            sf::Texture texture;
+            sf::Sprite sprite;
+
+            texture.loadFromImage(image);
+            texture.setSmooth(true);
+            sprite.setTexture(texture);
+            
+            if (fullscreen) {
+                sprite.setScale(scaleX, scaleY);
+            }
+
+            window.clear();
+            window.draw(sprite);
+            if (renderText) {
+                window.draw(background);
+                window.draw(debugText);
+            }
+            window.display();
+            updateText = false;
         }
 
         // call zoom function if LMB was pressed whilst the cursor is
         // inside the program window
-        sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
-
         if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && !autoZoom) {
-            // std::cout << "x: " << mousePosition.x << "\n";
-            // std::cout << "y: " << mousePosition.y << "\n\n";
-            if (fullscreen) {
-                mouseX = mousePosition.x / scaleX;
-                mouseY = mousePosition.y / scaleX;
-                windwowWidth = screenWidth;
-                windwowHeight = screenHeight;
-            } else {
-                mouseX = mousePosition.x;
-                mouseY = mousePosition.y;
-                windwowWidth = width;
-                windwowHeight = height;
-            }
-
-            if (mousePosition.x >= 0 && mousePosition.x < windwowWidth
-                && mousePosition.y >= 0 && mousePosition.y < windwowHeight) {
-                zoomInCursor(mouseX, mouseY, &upperLeft, &lowerRight, width, height,
+            if (mousePosition.x >= 0 && mousePosition.x < windowWidth
+                && mousePosition.y >= 0 && mousePosition.y < windowHeight) {
+                zoomInCursor(fullscreen ? mouseX / scaleX : mouseX,
+                            fullscreen ? mouseY / scaleY : mouseY,
+                            &upperLeft, &lowerRight, width, height,
                             zoomFactor);
                 update = true;
             }
         }
+        // call autoZoom if enabled
         if (autoZoom) {
             zoomInAuto(&autoZoomTarget, &upperLeft, &lowerRight, zoomFactor);
         }
     }
 
+    // print info when terminated
     std::cout << "Generated " << frameCounter << " frames.\n";
+    std::cout << "Max iterations at end: " << maxI << "\n";
+    std::ostringstream cordsReal;
+    std::ostringstream cordsImag;
+    cordsReal << std::fixed << std::setprecision(16) << mouseReal;
+    cordsImag << std::fixed << std::setprecision(16) << mouseImag;
+    std::cout << "Mouse real: " << cordsReal.str() << "\n";
+    std::cout << "Mouse imag: " << cordsImag.str() << "\n";
 
     return 0;
 }
