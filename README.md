@@ -47,6 +47,8 @@ For a list of optional terminal arguments:
 
 - Toggle debug text by pressing t
 
+- Take a screenshot by pressing s
+
 - Sharpen / blur the image by pressing + / -
 
 # Generate video using ffmpeg

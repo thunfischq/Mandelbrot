@@ -217,7 +217,8 @@ void zoomInAuto(Complex *target, Complex *upperLeft, Complex *lowerRight, double
 void updateTextRender(Complex *upperLeft, Complex *lowerRight, sf::Text* debugText,
                         sf::FloatRect* textBounds, sf::RectangleShape* background,
                         double* mouseReal, double* mouseImag, int mouseX, int mouseY,
-                        int windowWidth, int windowHeight) {
+                        int windowWidth, int windowHeight, int maxI, double zoomFactor,
+                        bool save, bool zoom, bool screenshot) {
     
     // compute real and imag coordinates of cursor
     (*mouseReal) = upperLeft->real + ((mouseX /
@@ -230,7 +231,13 @@ void updateTextRender(Complex *upperLeft, Complex *lowerRight, sf::Text* debugTe
     // write coordinates into debug text
     std::ostringstream cords;
     cords << std::fixed << std::setprecision(16) << (*mouseReal) << "\n"
-            << std::fixed << std::setprecision(16) << (*mouseImag);
+            << std::fixed << std::setprecision(16) << (*mouseImag) << "\n"
+            << "Max iterations: " << maxI << "\n" << "Zoom factor: "
+            << std::fixed << std::setprecision(3) << zoomFactor << "\n"
+            << "Autozoom: " << zoom << " | Saving: " << save;
+    if (screenshot) {
+        cords << "\nScreenshot saved.";
+    }
     (*debugText).setString(cords.str());
 
     // update text box
@@ -265,6 +272,7 @@ int main(int argc, char* argv[]) {
     bool saveFrames = false;
     bool fullscreen = false;
     bool renderText = false;
+    bool screenShot = false;
     uint32_t frameCounter = 0;
     int maxFrames = -1;
     double zoomFactor = 0.1;
@@ -276,7 +284,7 @@ int main(int argc, char* argv[]) {
     initComplex(&lowerRight, 1, -1);
     initComplex(&autoZoomTarget, -0.7435849988388146, 0.1318760846245895);
 
-    std::string helpText = "Give no optional arguments for a 1280x720 rendering.\n\nUse LMB to zoom into the position of the cursor, press SPACE to toggle auto zoom, f to toggle fullscreen and t to toggle debug text.\n\nUse:\n-r WIDTH HEIGHT for custom resolution (anything different from 16:9 will be distorted!) [Standard 1280 720]\n-c REAL IMAG for custom zoom coordinates [Standard -0.7435... 0.1318...]\n-m MAX for a maximum amount of frames before the program auto closes [Standard -1]\n-a to enable auto zoom from the beginning\n-s to save the frames as png's in /frames\n-i MAXI to change the maximum amount of iterations before a pixel is considered black [Standard 100]\n-z ZOOMFACTOR to change how much to zoom in for each new frame [Standard 0.1]\n-f to enable fullscreen at startup\n-t to enable debug text at startup";
+    std::string helpText = "Give no optional arguments for a 1280x720 rendering.\n\nUse LMB to zoom into the position of the cursor, press SPACE to toggle auto zoom, f to toggle fullscreen and t to toggle debug text. Press s to take a screenshot.\n\nUse:\n-r WIDTH HEIGHT for custom resolution (anything different from 16:9 will be distorted!) [Standard 1280 720]\n-c REAL IMAG for custom zoom coordinates [Standard -0.7435... 0.1318...]\n-m MAX for a maximum amount of frames before the program auto closes [Standard -1]\n-a to enable auto zoom from the beginning\n-s to save the frames as png's in /frames\n-i MAXI to change the maximum amount of iterations before a pixel is considered black [Standard 100]\n-z ZOOMFACTOR to change how much to zoom in for each new frame [Standard 0.1]\n-f to enable fullscreen at startup\n-t to enable debug text at startup\n";
 
     // parse optional terminal arguments
     for (int i = 1; i < argc; i++) {
@@ -404,6 +412,12 @@ int main(int argc, char* argv[]) {
                     
                     update = true;
                 }
+                // s takes a screenshot
+                if (event.key.code == 18) {
+                    if (!saveFrames) {
+                        screenShot = true;
+                    }
+                }
                 // close window if esc pressed
                 if (event.key.code == sf::Keyboard::Escape) {
                     window.close();
@@ -443,6 +457,16 @@ int main(int argc, char* argv[]) {
             updateText = true;
         }
 
+        // don't need to update render for screenshot
+        if (screenShot) {
+            std::ostringstream filename;
+            filename << "frames/frame_" << std::setw(4) << std::setfill('0')
+                        << frameCounter << ".png";
+            image.saveToFile(filename.str());
+            std::cout << "Saved screenshot to: " << filename.str() << "\n";
+            screenShot = false;
+        }
+
         // update rendering
         if (update) {
             frameCounter++;
@@ -457,7 +481,8 @@ int main(int argc, char* argv[]) {
             if (renderText) {
                 updateTextRender(&upperLeft, &lowerRight, &debugText, &textBounds,
                                 &background, &mouseReal, &mouseImag, mouseX, mouseY,
-                                windowWidth, windowHeight);
+                                windowWidth, windowHeight, maxI, zoomFactor, saveFrames,
+                                autoZoom, false);
             }
             
             // store frame as png
@@ -496,13 +521,14 @@ int main(int argc, char* argv[]) {
             if (maxFrames > 0 && maxFrames <= frameCounter) {
                 window.close();
             }
-        // only update debug text, still need to draw everything
+        // only update debug text, still need to draw the rest
         } else if (updateText) {  
             // update text box logic  
             if (renderText) {
                 updateTextRender(&upperLeft, &lowerRight, &debugText, &textBounds,
                                 &background, &mouseReal, &mouseImag, mouseX, mouseY,
-                                windowWidth, windowHeight);
+                                windowWidth, windowHeight, maxI, zoomFactor, saveFrames,
+                                autoZoom, false);
             }
 
             sf::Texture texture;
@@ -548,7 +574,7 @@ int main(int argc, char* argv[]) {
 
     // print info when terminated
     std::cout << "Generated " << frameCounter << " frames.\n";
-    std::cout << "Max iterations at end: " << maxI << "\n";
+    std::cout << "Max iterations: " << maxI << "\n";
     std::ostringstream cordsReal;
     std::ostringstream cordsImag;
     cordsReal << std::fixed << std::setprecision(16) << mouseReal;
