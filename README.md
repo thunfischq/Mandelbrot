@@ -14,6 +14,8 @@ Below you see example images rendered in 1920x1080 and a low-quality zoom animat
   <img src="examples/.example2.png" width="48%" />
 </p>
 
+Currently limited by double-precision floating-point number precision.
+
 # Dependencies
 
 Requires SFML library. On Ubuntu, install it via:
