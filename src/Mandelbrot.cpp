@@ -10,16 +10,6 @@
 #include <cstring>
 
 
-sf::Color black(0, 0, 0);
-sf::Color red(160, 16, 0);
-sf::Color orange(222, 100, 16);
-sf::Color yellow(232, 226, 42);
-sf::Color green(100, 240, 34);
-sf::Color turkise(33, 222, 177);
-sf::Color blue(34, 69, 207);
-sf::Color purple(69, 16, 160);
-
-
 // Simple complex number struct consisting of two doubles, being the real and the
 // imaginary part.
 struct Complex {
@@ -39,14 +29,14 @@ void initComplex(struct Complex *complex, double real, double imag) {
 // Calculating SQUARED distance value sqrt(a^2+b^2)^2 = abs(a^2+b^2) instead of normal
 // distance value sqrt(a^2+b^2) for efficiency.
 double absSquared(Complex *complex) {
-    return abs(pow(complex->real, 2) + pow(complex->imag, 2));
+    return abs(complex->real * complex->real + complex->imag * complex->imag);
 }
 
 
 // Square a complex number.
 Complex squareComplex(Complex *complex) {
     Complex newComplex;
-    double real = pow(complex->real, 2) - pow(complex->imag, 2);
+    double real = complex->real * complex->real - complex->imag * complex->imag;
     double imag = 2 * complex->real * complex->imag;
     initComplex(&newComplex, real, imag);
     return newComplex;
@@ -61,7 +51,7 @@ Complex addComplex(Complex *a, Complex *b) {
 }
 
 
-// Run the "mandelbro sequence" on given complex number until it explodes or the amount
+// Run the "mandelbrot sequence" on given complex number until it explodes or the amount
 // of max loops is reached.
 int mandelbrot(Complex *c, int maxLoops) {
     int amountLoops = 0;
@@ -371,13 +361,13 @@ int main(int argc, char* argv[]) {
             if (event.type == sf::Event::KeyPressed) {
                 // + sharpens the image by increasing maxI
                 if (event.key.code == 47 && sharpen == false) {
-                    maxI += 10;
+                    maxI += 100;
                     update = true;
                     sharpen = true;
                 }
                 // - blurs the image by decreasing maxI
                 if (event.key.code == 56 && blur == false) {
-                    maxI = std::max(100, maxI - 10);
+                    maxI = std::max(100, maxI - 100);
                     update = true;
                     blur = true;
                 }
@@ -388,6 +378,7 @@ int main(int argc, char* argv[]) {
                         update = true;
                     } else {
                         update = false;
+                        updateText = true;
                     }
                 }
                 // t toggles debug text rendering

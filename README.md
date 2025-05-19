@@ -2,11 +2,16 @@
 
 A cpu-bound multi-threaded renderer for the Mandelbrot set written in C++17. Serves no purpose besides looking cool. For an explanation of the Mandelbrot set, have a look at https://en.wikipedia.org/wiki/Mandelbrot_set.
 
-Below you see an example image rendered in 1920x1080 (left) and a low-quality zoom animation rendered in 800x450 (right). For higher quality examples, have a look in /examples.
+Below you see example images rendered in 1920x1080 and a low-quality zoom animation rendered in 800x450. For higher quality examples, have a look in /examples.
 
 <p align="center">
-  <img src="examples/.example.png" width="48%" />
+  <img src="examples/.example0.png" width="48%" />
   <img src="examples/.exampleGif.gif" width="48%" />
+</p>
+
+<p align="center">
+  <img src="examples/.example1.png" width="48%" />
+  <img src="examples/.example2.png" width="48%" />
 </p>
 
 # Dependencies
