@@ -208,23 +208,25 @@ void updateTextRender(Complex *upperLeft, Complex *lowerRight, sf::Text* debugTe
                         sf::FloatRect* textBounds, sf::RectangleShape* background,
                         double* mouseReal, double* mouseImag, int mouseX, int mouseY,
                         int windowWidth, int windowHeight, int maxI, double zoomFactor,
-                        bool save, bool zoom, bool screenshot) {
+                        bool save, bool zoom, bool screenshot, int width, int height) {
     
     // compute real and imag coordinates of cursor
-    (*mouseReal) = upperLeft->real + ((mouseX /
+    (*mouseReal) = upperLeft->real + ((static_cast<double>(mouseX) /
                     static_cast<double>(windowWidth))
                     * (lowerRight->real - upperLeft->real));
-    (*mouseImag) = upperLeft->imag + ((mouseY /
+    (*mouseImag) = upperLeft->imag + ((static_cast<double>(mouseY) /
                     static_cast<double>(windowHeight))
                     * (lowerRight->imag - upperLeft->imag));
     
-    // write coordinates into debug text
+    // write into debug text
     std::ostringstream cords;
     cords << std::fixed << std::setprecision(16) << (*mouseReal) << "\n"
             << std::fixed << std::setprecision(16) << (*mouseImag) << "\n"
-            << "Max iterations: " << maxI << "\n" << "Zoom factor: "
-            << std::fixed << std::setprecision(3) << zoomFactor << "\n"
+            << "Width: " << width << " | Height: " << height << "\n"
+            << "Max iterations: " << maxI << "\n" <<
+            "Zoom factor: " << std::fixed << std::setprecision(3) << zoomFactor << "\n"
             << "Autozoom: " << zoom << " | Saving: " << save;
+
     if (screenshot) {
         cords << "\nScreenshot saved.";
     }
@@ -361,13 +363,21 @@ int main(int argc, char* argv[]) {
             if (event.type == sf::Event::KeyPressed) {
                 // + sharpens the image by increasing maxI
                 if (event.key.code == 47 && sharpen == false) {
-                    maxI += 100;
+                    if (maxI >= 5000) {
+                        maxI += 1000;
+                    } else {
+                        maxI += 100;
+                    }
                     update = true;
                     sharpen = true;
                 }
                 // - blurs the image by decreasing maxI
                 if (event.key.code == 56 && blur == false) {
-                    maxI = std::max(100, maxI - 100);
+                    if (maxI >= 5000) {
+                        maxI -= 1000;
+                    } else {
+                        maxI = std::max(100, maxI - 100);
+                    }
                     update = true;
                     blur = true;
                 }
@@ -473,7 +483,7 @@ int main(int argc, char* argv[]) {
                 updateTextRender(&upperLeft, &lowerRight, &debugText, &textBounds,
                                 &background, &mouseReal, &mouseImag, mouseX, mouseY,
                                 windowWidth, windowHeight, maxI, zoomFactor, saveFrames,
-                                autoZoom, false);
+                                autoZoom, false, width, height);
             }
             
             // store frame as png
@@ -519,7 +529,7 @@ int main(int argc, char* argv[]) {
                 updateTextRender(&upperLeft, &lowerRight, &debugText, &textBounds,
                                 &background, &mouseReal, &mouseImag, mouseX, mouseY,
                                 windowWidth, windowHeight, maxI, zoomFactor, saveFrames,
-                                autoZoom, false);
+                                autoZoom, false, width, height);
             }
 
             sf::Texture texture;
