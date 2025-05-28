@@ -62,6 +62,7 @@ For a list of optional terminal arguments:
 
 FFmpeg is a powerful tool with many optional workmodes and arguments. What worked fine for me was, after having generated the frames, running:
 
-    ffmpeg -framerate 30 -i frames/frame_%04d.png -c:v libx265 -crf 10 -preset slow -pix_fmt yuv444p examples/render.mp4
+    ffmpeg -framerate 30 -i frames/frame_%04d.png -c:v libx265 -crf 28 -preset medium -pix_fmt yuv420p examples/render_compressed.mp4
+
 
 

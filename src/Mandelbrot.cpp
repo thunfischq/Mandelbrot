@@ -274,7 +274,7 @@ int main(int argc, char* argv[]) {
     Complex autoZoomTarget; // horsesea valley
     initComplex(&upperLeft, -2.5, 1);
     initComplex(&lowerRight, 1, -1);
-    initComplex(&autoZoomTarget, -0.7435849988388146, 0.1318760846245895);
+    initComplex(&autoZoomTarget, -0.7435862898659100, 0.1318763829122250);
 
     std::string helpText = "Give no optional arguments for a 1280x720 rendering.\n\nUse LMB to zoom into the position of the cursor, press SPACE to toggle auto zoom, f to toggle fullscreen and t to toggle debug text. Press s to take a screenshot.\n\nUse:\n-r WIDTH HEIGHT for custom resolution (anything different from 16:9 will be distorted!) [Standard 1280 720]\n-c REAL IMAG for custom zoom coordinates [Standard -0.7435... 0.1318...]\n-m MAX for a maximum amount of frames before the program auto closes [Standard -1]\n-a to enable auto zoom from the beginning\n-s to save the frames as png's in /frames\n-i MAXI to change the maximum amount of iterations before a pixel is considered black [Standard 100]\n-z ZOOMFACTOR to change how much to zoom in for each new frame [Standard 0.1]\n-f to enable fullscreen at startup\n-t to enable debug text at startup\n";
 
